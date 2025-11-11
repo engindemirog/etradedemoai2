@@ -8,12 +8,12 @@ import com.turkcell.etradedemoai.business.dtos.responses.product.DeleteProductRe
 import com.turkcell.etradedemoai.business.dtos.responses.product.GetAllProductsResponse;
 import com.turkcell.etradedemoai.business.dtos.responses.product.GetProductResponse;
 import com.turkcell.etradedemoai.business.dtos.responses.product.UpdateProductResponse;
+import com.turkcell.etradedemoai.business.mappers.ProductMapper;
 import com.turkcell.etradedemoai.business.rules.ProductBusinessRules;
 import com.turkcell.etradedemoai.dataAccess.ProductRepository;
 import com.turkcell.etradedemoai.entities.Product;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,10 +22,15 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
     private final ProductBusinessRules productBusinessRules;
+    private final ProductMapper productMapper;
 
-    public ProductServiceImpl(ProductRepository productRepository, ProductBusinessRules productBusinessRules) {
+    public ProductServiceImpl(
+            ProductRepository productRepository, 
+            ProductBusinessRules productBusinessRules,
+            ProductMapper productMapper) {
         this.productRepository = productRepository;
         this.productBusinessRules = productBusinessRules;
+        this.productMapper = productMapper;
     }
 
     @Override
@@ -36,32 +41,21 @@ public class ProductServiceImpl implements ProductService {
         productBusinessRules.checkIfProductPriceIsValid(request.getUnitPrice());
         productBusinessRules.checkIfProductStockIsValid(request.getUnitsInStock());
         
-        Product entity = toEntity(request);
+        Product entity = productMapper.toEntity(request);
         productBusinessRules.getCategoryIfExists(request.getCategoryId())
             .ifPresent(entity::setCategory);
         Product saved = productRepository.save(entity);
-        CreateProductResponse resp = new CreateProductResponse();
-        resp.setId(saved.getId());
-        resp.setName(saved.getName());
-        resp.setUnitPrice(saved.getUnitPrice());
-        resp.setUnitsInStock(saved.getUnitsInStock());
-        resp.setDescription(saved.getDescription());
-        resp.setCreatedDate(saved.getCreatedDate());
-        resp.setCategoryId(productBusinessRules.extractCategoryId(saved));
-        resp.setCategoryName(productBusinessRules.extractCategoryName(saved));
-        return resp;
+        return productMapper.toCreateResponse(saved);
     }
 
     @Override
     public Optional<GetProductResponse> getById(Long id) {
-        return productRepository.findById(id).map(this::toGetResponse);
+        return productRepository.findById(id).map(productMapper::toGetResponse);
     }
 
     @Override
     public GetAllProductsResponse getAll() {
-        List<GetProductResponse> items = productRepository.findAll().stream()
-            .map(this::toGetResponse)
-            .collect(Collectors.toList());
+        List<GetProductResponse> items = productMapper.toGetResponseList(productRepository.findAll());
         return new GetAllProductsResponse(items);
     }
 
@@ -81,14 +75,7 @@ public class ProductServiceImpl implements ProductService {
         productBusinessRules.getCategoryIfExists(request.getCategoryId())
             .ifPresent(existing::setCategory);
         Product saved = productRepository.save(existing);
-        return new UpdateProductResponse(
-            saved.getId(),
-            saved.getName(),
-            saved.getUnitPrice(),
-            saved.getUnitsInStock(),
-            saved.getDescription(),
-            saved.getUpdatedDate()
-        );
+        return productMapper.toUpdateResponse(saved);
     }
 
     @Override
@@ -99,29 +86,5 @@ public class ProductServiceImpl implements ProductService {
         
         productRepository.deleteById(id);
         return new DeleteProductResponse(true, "Deleted");
-    }
-
-    private Product toEntity(CreateProductRequest request) {
-        Product p = new Product();
-        p.setName(request.getName());
-        p.setUnitPrice(request.getUnitPrice());
-        p.setUnitsInStock(request.getUnitsInStock());
-        p.setDescription(request.getDescription());
-        return p;
-    }
-
-    private GetProductResponse toGetResponse(Product p) {
-        return new GetProductResponse(
-            p.getId(),
-            p.getName(),
-            p.getUnitPrice(),
-            p.getUnitsInStock(),
-            p.getDescription(),
-            p.getCreatedDate(),
-            p.getUpdatedDate(),
-            p.getDeletedDate(),
-            productBusinessRules.extractCategoryId(p),
-            productBusinessRules.extractCategoryName(p)
-        );
     }
 }
