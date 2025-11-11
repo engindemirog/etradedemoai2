@@ -1,101 +1,114 @@
-# Proje Kuralları ve Best Practices
+# Yazılım Geliştirme Kuralları — Genel Şablon
 
-Bu dosya, bu ve sonraki projelerde tutarlı, sürdürülebilir ve güvenli geliştirme için izlememizi istediğim kuralları içerir. Kısa, uygulanabilir ve CI ile denetlenebilir olacak şekilde hazırlandı.
+Bu dosya, farklı projelerde temel girdi olarak kullanılabilecek, dil/çerçeve özelinden büyük ölçüde arındırılmış bir kurallar şablonudur. Amaç: tutarlı, sürdürülebilir, test edilebilir ve güvenli geliştirme alışkanlıkları sunmak.
 
 ## Kısa Sözleşme (Contract)
-- Girdi: Java 17 tabanlı Spring Boot uygulaması, Maven wrapper (mvnw) ile build.
-- Çıktı: Derlenebilir kaynak, birim testleri, OpenAPI dokümantasyonu, tutarlı kod stili.
-- Hata Modu: CI derleme/test başarısızsa PR merge edilmez; kod review isteğe bağlı hata düzeltmeleri gerektirir.
+- Girdi: Herhangi bir yazılım projesi (tercihen sürümlenmiş araçlar; örneğin JVM projeleri için Java 17+ önerilir).
+- Çıktı: Derlenebilir/çalıştırılabilir kaynak, birim testleri, açıkça tanımlanmış hata modelleri, tutarlı kod stili.
+- Hata Modu: CI derleme/test başarısızsa değişiklikler ana dala/ürün sürümüne merge edilmez.
 
-## Temel Araçlar ve Versiyonlar
-- Java: 17 (JDK, NOT JRE) — tüm geliştiricilerde ve CI'de JDK bulunmalı.
-- Build: Maven (proje içindeki `mvnw` kullanılmalı).
-- Spring Boot LTS serisi (proje için belirtilen versiyon korunmalı).
-- MapStruct: compile-time mapper (örnek: 1.6.x veya proje uyumluluğu gösteren versiyon).
-- Test: JUnit5, Mockito, AssertJ.
+## Uygulanabilirlik / Adaptasyon
+- Bu rehber geneldir: proje dili, build aracı veya dağıtım ortamına bağlı olarak bazı bölümler (ör: MapStruct, mvnw) adapte edilmelidir.
+- Proje sahipleri, bu dosyayı temel alarak proje-özel gereksinim ve araç listesini eklemelidir.
 
-## Proje Yapısı / Paketleme
-- Katmanlı yapı: `controller` (web), `business` (servis), `data`/`repository`, `entities`/`models`, `dto`/`requests`/`responses`, `mappers`.
-- DTO'lar servis sınırında kullanılmalı; entity'ler controller'a dönülmemeli.
-- Mapper: MapStruct kullan — `@Mapper(componentModel = "spring")`.
+## Temel Prensipler
+- Kısa, test edilebilir, tek sorumluluklu bileşenler oluşturun (SRP).
+- Bağımlılıkları soyutlamalar üzerinden enjekte edin (DIP).
+- Arayüzleri küçük ve spesifik tutun (ISP).
+- Mevcut davranışı bozmadan genişleyebilen tasarımlar tercih edin (OCP).
+- Alt sınıflar üst sınıfların yerine sorunsuz geçebilmeli (LSP).
 
-## Kod Stili ve Format
-- Kod formatı otomatik: Google Java Format veya Spotless + formatter config önerilir.
-- `editorconfig` ekle ve IDE ayarlarını paylaş (tab/space, encodig).
-- Kısa, tek sorumluluklu metotlar (SRP). Fonksiyon/servis başına sorumluluk net olmalı.
+## Araçlar ve Versiyon Önerileri (Genel)
+- JVM projeleri için öneri: Java 17+ (JDK). CI ortamlarında JDK kurulu ve `JAVA_HOME` ayarlı olmalı.
+- Build araçları: Maven veya Gradle (proje için uygun olan tercih edilmeli).
+- Kod formatı: proje ekibi ile kararlaştırılmış formatlayıcı (Google Java Format, ktlint, Prettier, vs.).
+- Mapper seçimleri: Java projeleri için MapStruct (compile-time), diğer diller için uygun benzeri tercih edin.
 
-## Bağımlılıklar ve Yönetim
-- Direkt versiyon sabitle: pom.xml içinde properties kullan.
-- Yeni bağımlılık eklerken: a) gerçekten gerekli mi, b) aktif bakım durumu, c) güvenlik/size etkisi.
-- Maven Enforcer plugin ile JDK ve dependency rule'ları CI'de zorlanmalı.
+## Proje Yapısı (örnek, dil/çerçeveye göre uyarlanır)
+- Layered architecture önerilir: API / Application / Domain / Infrastructure.
+- DTO/Request/Response ile domain entity'lerini ayırın.
+- Mapper'lar sadece dönüşüm yapmalı; iş mantığını içermemeli.
 
-## Mapping Kuralları (MapStruct)
-- MapStruct tercih edilir (compile-time, hızlı). `componentModel = "spring"` kullan.
-- Mapper interface'leri `business.mappers` paketinde toplanır.
-- Çok karmaşık dönüşümler için helper metodları mapper içinde `@Named` olarak ekle.
-- Null vs Optional kararını projede tutarlı kullan (DTO'larda Optional önerilmez).
+## SOLID Prensipleri — Business & Rules Yazımı
+Bu şablon özellikle iş kuralları ve servis katmanları için uygulanabilecek pratik kuralları içerir:
 
-## Hata Yönetimi
-- RFC7807 / ProblemDetail tarzı global hata yanıtı kullan (ör: `BusinessProblemDetail`).
-- Domain/business hataları için özel `BusinessException` ve handler kullan.
-- Global exception handler uygulandıktan sonra OpenAPI ile çatışma varsa, hata dönüşleri için `@Schema` açıklamaları eklenmeli.
+- Single Responsibility (SRP): Her sınıf/sınıf grubu tek bir sorumluluk taşımalı. Validation ve iş kuralları ayrı bileşenlerde tutulmalı.
+- Open/Closed (OCP): Yeni davranış eklemek için mevcut sınıfları değiştirmek yerine yeni modüller/implementasyonlar ekleyin.
+- Liskov Substitution (LSP): Arayüzleri implement eden sınıflar beklenen davranışı bozmayacak şekilde tasarlanmalı.
+- Interface Segregation (ISP): Büyük arayüzler yerine küçük, özel arayüzler kullanın.
+- Dependency Inversion (DIP): Üst seviye bileşenler somut sınıflara değil arayüzlere/abstraction'lara bağımlı olmalı; constructor-injection tercih edilir.
 
-## Güvenlik
-- Saklanmaması gerekenler: API anahtarları, tokenler, parolalar kaynak koduna commit edilmez.
-- Dependabot veya benzeri araçlar ile bağımlılık güvenlik taraması yapılsın.
+Pratik öneriler:
+- İş kurallarını `rules` veya `domain.rules` gibi bir pakette toplayın; her rule tek bir koşulu doğrulasın.
+- Kurallar saf (stateless) olabildiğince side-effect üretmesin. DB/IO gereksinimi varsa, bu açıkça belirtilsin ve unit testlerde mocklanabilir olsun.
+- Her kural için hızlı unit testler yazın (happy-path + hata-case).
 
-## CORS ve Konfigürasyon
-- CORS konfigürasyonu açık yapılacaksa (geliştirme), prod için kısıtlanmış policy kullanılmalı.
+## Hata Yönetimi (Genel Yaklaşım)
+- API/servisler için tutarlı bir hata modeli kullanın (ör: RFC7807 Problem Details veya dilinize uygun benzeri).
+- Domain hataları ile teknik hataları ayırın; kullanıcıya dönen hata mesajları ham stacktrace içermemeli.
+
+## Mapping (Dönüşümler)
+- Java için MapStruct gibi compile-time çözümler önerilir; diğer diller için performans/maintainability dengesi göz önünde bulundurulmalı.
+- Mapper'lar null/optional sözleşmesi konusunda açık olmalı; dönüşümlerin sınır koşulları test edilmeli.
 
 ## Testler
-- Her servis/metodun happy-path birim testi olmalı; kritik iş kuralları için ek sınır/olumsuz durum testleri ekle.
-- Mockito kullanarak repository/DB bağımlılıklarını mockla.
-- Minimum gereksinim: servis katmanında %80 coverage; kritik iş mantıklarında %100 hedeflenebilir.
-- Test isimlendirme: methodUnderTest_condition_expectedResult (ör: createProduct_whenValidRequest_returnsCreateResponse).
+- Her mantıksal birim için birim testleri (unit) yazılmalı; kritik iş akışları için entegrasyon testleri eklenmeli.
+- Testler izolasyonlu olmalı: dış bağımlılıklar mock'lanmalı veya test konteynerleri kullanılmalı.
+- Minimum tavsiye: temel modüller için %70-80 coverage; kritik domain kuralları için daha yüksek hedef.
 
-## CI / Build Kuralları
-- CI pipeline isteğe bağlı ama önerilen aşamalar:
-  1. Setup JDK 17
-  2. `./mvnw -B -DskipTests=false clean verify` (testleri çalıştır)
-  3. Kod format kontrolü (Spotless/formatter)
-  4. Unit test coverage gate (jacoco) — eşiği proje yönetimi belirler.
-  5. Güvenlik taraması (dependency-check / Snyk).
+## CI / Build Önerileri
+- CI pipeline genel aşamaları (proje türüne göre uyarlanır):
+  1. Checkout
+  2. Setup environment (JDK/SDK, toolchain)
+  3. Lint/format check
+  4. Build (derleme)
+  5. Unit tests + coverage
+  6. Security scan (dependency checks)
+  7. Publish artifacts (on approval)
 
 ## Commit ve PR Kuralları
-- Commit mesajları: Conventional Commits önerilir (feat/, fix/, docs/, chore/).
-- PR checklist (zorunlu):
-  - Derleme geçiriyor (CI green)
-  - Unit testler yeşil
-  - Kod formatı uygun
-  - En az 1 reviewer onayı (kısıtlamalara göre 2)
-  - Gerekliyse migration/dökümantasyon güncellendi
+- Commit mesajı standardı belirleyin (Conventional Commits tavsiye edilir).
+- PR checklist (genel):
+  - Build/CI başarılı
+  - Unit testler çalışıyor
+  - Kod formatı uygulanmış
+  - Değişiklikleri açıklayan açıklama ve gerekiyorsa dokümantasyon
+  - En az bir reviewer
 
-## Logging ve Monitoring
-- Yapılandırılmış log (JSON veya SLF4J + MDC), önemli olaylara correlation-id ekle.
+## Güvenlik ve Secrets
+- Secrets/anahtarlar kaynak koduna commit edilmez; ortam değişkenleri/secret manager tercih edilir.
+- Dependabot/Snyk gibi araçlarla bağımlılık güvenlik taraması yapın.
 
-## Dokümantasyon
-- API: springdoc-openapi / OpenAPI @Operation açıklamalarıyla belgelendir.
-- SRS ve yüksek seviye tasarım değişiklikleri için `docs/` veya `SRS.md` oluştur.
+## Logging, Tracing ve Monitoring
+- Yapılandırılmış logging (en azından açık format) ve correlation-id kullanımını teşvik edin.
+- Kritik uç noktalar için tracing (OpenTelemetry) ve metrik toplanması önerilir.
 
-## Hata & Çözümler (Common Gotchas)
-- Lokal hata: "No compiler is provided" → ortamda JDK yerine JRE var. Çözüm: JDK kurup `JAVA_HOME` ayarla.
-- MapStruct impl'leri yoksa `mvnw clean compile` çalıştır (JDK gerekli).
+## Enforcement / Checklist (Hızlı Kontrol)
+- CI'de zorlanabilecek kontroller:
+  - Linter/format doğrulama
+  - Build ve test geçişleri
+  - Coverage gate (proje ihtiyacına göre)
+  - JDK/SDK enforcer (proje türüne göre)
 
-## Enforcement / Önerilen Ek Adımlar
-- CI pipeline'a aşağıdakileri ekle:
-  - `mvnw -DskipTests=false clean verify`
-  - Spotless/formatter check
-  - jacoco coverage check
-  - maven-enforcer (JDK check)
-- Opsiyonel: `pre-commit` git hook ile `mvnw -q -DskipTests=true spotless:check` çalıştır.
+## Uygulama Şablonları ve Örnekler
+- `BusinessRule` pattern (pseudocode):
 
-## Nasıl Başlanır / Şablon
-1. Repo kopyalandıktan sonra: `export JAVA_HOME=C:\path\to\jdk17` (Windows: sistem ayarlarından ayarla).
-2. `./mvnw -v` ile JDK gösterildiğini doğrula.
-3. `./mvnw clean compile` MapStruct impl'lerini üretir.
+```
+interface BusinessRule { void check(); }
 
-## Kapanış ve İrtibat
-Bu kurallar zamanla evrilebilir. Yeni kural önerileri için PR açın ve en az iki kişiden onay alın. İsterseniz ben bu dosyayı CI kurallarıyla (maven-enforcer, Spotless) otomatik olarak entegre edebilirim.
+// örnek implementasyon
+class ProductMustExistRule implements BusinessRule {
+  // repository veya service injected
+  public void check() { /* throw business exception if not satisfied */ }
+}
+```
 
----
-Bu dosya, projelerin hızlı ve tutarlı şekilde ilerlemesi için hazırlanmıştır. Gerektiğinde projeye özel ayarlamalar yapılabilir.
+## Nasıl Başlanır (Adaptasyon Rehberi)
+- Yeni bir proje başlatırken bu dosyayı kopyalayın ve aşağıdakileri proje-özel şekilde doldurun:
+  - Hangi dil ve sürümlerin desteklendiği
+  - Build ve CI komutları (mvnw/gradlew/npm vs.)
+  - Gerekli araçlar ve setup talimatları
+
+## Kapanış
+Bu dosya genel bir şablondur; proje ihtiyaçlarına göre uyarlanmalıdır. Şablonda değişiklik öneriniz varsa PR ile gönderin; kritik değişiklikler için en az iki onay önerilir.
+
