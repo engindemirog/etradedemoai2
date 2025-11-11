@@ -10,7 +10,6 @@ import com.turkcell.etradedemoai.business.dtos.responses.product.GetProductRespo
 import com.turkcell.etradedemoai.business.dtos.responses.product.UpdateProductResponse;
 import com.turkcell.etradedemoai.business.rules.ProductBusinessRules;
 import com.turkcell.etradedemoai.dataAccess.ProductRepository;
-import com.turkcell.etradedemoai.dataAccess.CategoryRepository;
 import com.turkcell.etradedemoai.entities.Product;
 import java.util.List;
 import java.util.Optional;
@@ -22,12 +21,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
-    private final CategoryRepository categoryRepository;
     private final ProductBusinessRules productBusinessRules;
 
-    public ProductServiceImpl(ProductRepository productRepository, CategoryRepository categoryRepository, ProductBusinessRules productBusinessRules) {
+    public ProductServiceImpl(ProductRepository productRepository, ProductBusinessRules productBusinessRules) {
         this.productRepository = productRepository;
-        this.categoryRepository = categoryRepository;
         this.productBusinessRules = productBusinessRules;
     }
 
@@ -40,9 +37,8 @@ public class ProductServiceImpl implements ProductService {
         productBusinessRules.checkIfProductStockIsValid(request.getUnitsInStock());
         
         Product entity = toEntity(request);
-        if (request.getCategoryId() != null) {
-            categoryRepository.findById(request.getCategoryId()).ifPresent(entity::setCategory);
-        }
+        productBusinessRules.getCategoryIfExists(request.getCategoryId())
+            .ifPresent(entity::setCategory);
         Product saved = productRepository.save(entity);
         CreateProductResponse resp = new CreateProductResponse();
         resp.setId(saved.getId());
@@ -51,10 +47,8 @@ public class ProductServiceImpl implements ProductService {
         resp.setUnitsInStock(saved.getUnitsInStock());
         resp.setDescription(saved.getDescription());
         resp.setCreatedDate(saved.getCreatedDate());
-        if (saved.getCategory() != null) {
-            resp.setCategoryId(saved.getCategory().getId());
-            resp.setCategoryName(saved.getCategory().getName());
-        }
+        resp.setCategoryId(productBusinessRules.extractCategoryId(saved));
+        resp.setCategoryName(productBusinessRules.extractCategoryName(saved));
         return resp;
     }
 
@@ -84,9 +78,8 @@ public class ProductServiceImpl implements ProductService {
         existing.setUnitPrice(request.getUnitPrice());
         existing.setUnitsInStock(request.getUnitsInStock());
         existing.setDescription(request.getDescription());
-        if (request.getCategoryId() != null) {
-            categoryRepository.findById(request.getCategoryId()).ifPresent(existing::setCategory);
-        }
+        productBusinessRules.getCategoryIfExists(request.getCategoryId())
+            .ifPresent(existing::setCategory);
         Product saved = productRepository.save(existing);
         return new UpdateProductResponse(
             saved.getId(),
@@ -118,12 +111,6 @@ public class ProductServiceImpl implements ProductService {
     }
 
     private GetProductResponse toGetResponse(Product p) {
-        Long catId = null;
-        String catName = null;
-        if (p.getCategory() != null) {
-            catId = p.getCategory().getId();
-            catName = p.getCategory().getName();
-        }
         return new GetProductResponse(
             p.getId(),
             p.getName(),
@@ -133,8 +120,8 @@ public class ProductServiceImpl implements ProductService {
             p.getCreatedDate(),
             p.getUpdatedDate(),
             p.getDeletedDate(),
-            catId,
-            catName
+            productBusinessRules.extractCategoryId(p),
+            productBusinessRules.extractCategoryName(p)
         );
     }
 }

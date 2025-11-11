@@ -18,3 +18,9 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
         format_sql: true
+
+logging:
+  level:
+    org.springframework.web: DEBUG
+    org.springdoc: DEBUG
+    com.turkcell.etradedemoai: DEBUG

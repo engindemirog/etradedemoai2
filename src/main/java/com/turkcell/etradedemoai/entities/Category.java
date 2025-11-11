@@ -1,5 +1,6 @@
 package com.turkcell.etradedemoai.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Entity;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
@@ -13,6 +14,7 @@ public class Category extends BaseEntity {
     private String name;
 
     @OneToMany(mappedBy = "category")
+    @JsonIgnore
     private List<Product> products = new ArrayList<>();
 
     public Category() {
